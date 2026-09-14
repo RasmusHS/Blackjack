@@ -64,4 +64,6 @@ public class DeckModel
         new CardModel("2 of Hearts", 2),
         new CardModel("Ace of Hearts", null)
     };
+
+    public GameModel Game { get; private set; }
 }
