@@ -4,7 +4,7 @@ public class DealerModel
 {
     public DealerModel()
     {
-        
+
     }
 
     public void InitializeHand(CardModel card)
@@ -67,10 +67,12 @@ public class DealerModel
     }
 
     public List<CardModel> Hand { get; private set; } = new List<CardModel>();
-    public CardModel HoleCard { get; private set; } 
+    public CardModel HoleCard { get; private set; }
     public int HandValue { get; set; } = 0;
 
     public GameModel Game { get; private set; }
 
     public bool HasBusted { get; set; } = false;
+    public bool LowAceHand { get; set; } = false;
+    public bool LowAceSplit { get; set; } = false;
 }

@@ -20,7 +20,8 @@ public class GameModel
 
         // Cards should be dealt one at a time to each player and then to the dealer,
         // repeating until each player has two cards and the dealer has two cards (one face up and one face down).
-        var cardsToDeal = 2*PlayerCount+1;
+        // TODO: Try implementing by nesting the loops. The outer for loop running 2 times and the inner loop going through each player (+dealer).
+        var cardsToDeal = 2 * PlayerCount + 1;
         for (int i = 0; i < cardsToDeal; i++)
         {
             //if (i < PlayerCount && Players[i].Hand.Count < 2)
@@ -45,7 +46,7 @@ public class GameModel
             {
                 player.Hit(Deck.ShuffledDeck.Pop(), null);
             }
-            else 
+            else
             {
                 player.Hit(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
             }
@@ -55,7 +56,7 @@ public class GameModel
     public Guid Id { get; private set; }
     public int PlayerCount { get; private set; }
 
-    public DeckModel Deck { get; private set; } 
+    public DeckModel Deck { get; private set; }
     public DealerModel Dealer { get; private set; }
     public List<PlayerModel> Players { get; set; }
 }

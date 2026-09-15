@@ -25,13 +25,13 @@ public class PlayerModel
             {
                 Hand.Add(card);
                 HandValue += card.Value ?? 0;
-            }  
+            }
             else
             {
                 Hand.Append(card);
                 Ace();
             }
-                
+
         }
         else
         {
@@ -81,7 +81,7 @@ public class PlayerModel
             else
                 HandValue += card.Value ?? 0;
         }
-        else 
+        else
         {
             Bet *= 2;
             SplitBet *= 2;
@@ -222,4 +222,6 @@ public class PlayerModel
     public bool HasSplit { get; set; } = false;
     public bool EndedTurn { get; set; } = false;
     public bool HasBusted { get; set; } = false;
+    public bool LowAceHand { get; set; } = false;
+    public bool LowAceSplit { get; set; } = false;
 }
