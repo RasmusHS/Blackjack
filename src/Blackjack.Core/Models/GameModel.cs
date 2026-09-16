@@ -2,11 +2,15 @@ namespace Blackjack.Core.Models;
 
 public class GameModel
 {
-    public GameModel(int playerCount)
+    internal GameModel() { } // For EF Core
+
+    public GameModel(DealerModel dealer, List<PlayerModel> players)
     {
         Id = Guid.NewGuid();
-        PlayerCount = playerCount;
-        Deck = new DeckModel();
+        //Deck = deck;
+        Dealer = dealer;
+        Players = players;
+        PlayerCount = Players.Count;
     }
 
     public void StartGame()
@@ -20,25 +24,29 @@ public class GameModel
 
         // Cards should be dealt one at a time to each player and then to the dealer,
         // repeating until each player has two cards and the dealer has two cards (one face up and one face down).
-        // TODO: Try implementing by nesting the loops. The outer for loop running 2 times and the inner loop going through each player (+dealer).
         var cardsToDeal = 2 * PlayerCount + 1;
-        for (int i = 0; i < cardsToDeal; i++)
+        for (int i = 0; i < 2; i++) 
         {
-            //if (i < PlayerCount && Players[i].Hand.Count < 2)
-            //{
-            //    Players[i].InitializeHand(Deck.ShuffledDeck.Pop());
-            //}
-            //else if (i == PlayerCount)
-            //{
-            //    Dealer.InitializeHand(Deck.ShuffledDeck.Pop());
-            //}
+            for (int j = 0; j < PlayerCount; j++) // Inner loop to deal cards to each player
+            {
+                if (Deck.ShuffledDeck.Count > 0)
+                {
+                    Players[j].InitializeHand(Deck.ShuffledDeck.Pop());
+                }
+            }
 
+            if (i == 0) // Deal 1 face up card to the dealer, but only on the first iteration of the outer loop
+            {
+                Dealer.InitializeHand(Deck.ShuffledDeck.Pop());
+            }
+            else if (i == 1) // Deal 1 face down card to the dealer, but only on the second iteration of the outer loop
+            {
+                Dealer.InitializeHoleCard(Deck.ShuffledDeck.Pop());
+            }
         }
-
-        //Dealer.InitializeHand(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
     }
 
-    public void Hit(PlayerModel player)
+    public void HitPlayer(PlayerModel player)
     {
         if (Deck.ShuffledDeck.Count > 0)
         {
@@ -50,6 +58,50 @@ public class GameModel
             {
                 player.Hit(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
             }
+        }
+    }
+
+    public void StandPlayer(PlayerModel player)
+    {
+        player.Stand();
+    }
+
+    public void DoubleDownPlayer(PlayerModel player)
+    {
+        if (Deck.ShuffledDeck.Count > 0)
+        {
+            if (!player.HasSplit)
+            {
+                player.DoubleDown(Deck.ShuffledDeck.Pop(), null);
+            }
+            else
+            {
+                player.DoubleDown(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
+            }
+        }
+    }
+
+    public void SplitPlayer(PlayerModel player)
+    {
+        if (Deck.ShuffledDeck.Count > 0)
+        {
+            player.Split(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
+        }
+    }
+
+    /// <summary>
+    /// Dealer has to hit until their hand value is 17 or higher.
+    /// If the dealer goes over 21, they bust and the players win.
+    /// </summary>
+    public void HitDealer()
+    {
+        if (Deck.ShuffledDeck.Count > 0)
+        {
+            do
+            {
+                if (Deck.ShuffledDeck.Count == 0) break; // Break the loop if the deck is empty to avoid an exception
+                Dealer.Hit(Deck.ShuffledDeck.Pop());
+            } while (Dealer.HandValue < 17 && !Dealer.BustedHand); // Keep hitting until the dealer's hand value is 17 or higher, or the dealer busts
         }
     }
 
