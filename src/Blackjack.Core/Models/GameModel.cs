@@ -7,7 +7,6 @@ public class GameModel
     public GameModel(DealerModel dealer, List<PlayerModel> players)
     {
         Id = Guid.NewGuid();
-        //Deck = deck;
         Dealer = dealer;
         Players = players;
         PlayerCount = Players.Count;
@@ -15,17 +14,18 @@ public class GameModel
 
     public void StartGame()
     {
+        Deck = new DeckModel();
         Dealer = new DealerModel();
         Players = new List<PlayerModel>();
         for (int i = 0; i < PlayerCount; i++)
         {
-            Players.Add(new PlayerModel($"Player {i + 1}", i + 1, 1000));
+            Players.Add(new PlayerModel(Id, $"Player {i + 1}", 1000));
         }
 
         // Cards should be dealt one at a time to each player and then to the dealer,
         // repeating until each player has two cards and the dealer has two cards (one face up and one face down).
         var cardsToDeal = 2 * PlayerCount + 1;
-        for (int i = 0; i < 2; i++) 
+        for (int i = 0; i < 2; i++)
         {
             for (int j = 0; j < PlayerCount; j++) // Inner loop to deal cards to each player
             {
@@ -97,11 +97,13 @@ public class GameModel
     {
         if (Deck.ShuffledDeck.Count > 0)
         {
-            do
+            Dealer.CalculateHandValue();
+
+            while (Dealer.HandValue < 17 && !Dealer.BustedHand) // Keep hitting until the dealer's hand value is 17 or higher, or the dealer busts
             {
                 if (Deck.ShuffledDeck.Count == 0) break; // Break the loop if the deck is empty to avoid an exception
                 Dealer.Hit(Deck.ShuffledDeck.Pop());
-            } while (Dealer.HandValue < 17 && !Dealer.BustedHand); // Keep hitting until the dealer's hand value is 17 or higher, or the dealer busts
+            }
         }
     }
 
@@ -110,5 +112,5 @@ public class GameModel
 
     public DeckModel Deck { get; private set; }
     public DealerModel Dealer { get; private set; }
-    public List<PlayerModel> Players { get; set; }
+    public List<PlayerModel> Players { get; private set; }
 }

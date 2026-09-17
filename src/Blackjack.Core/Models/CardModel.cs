@@ -9,12 +9,12 @@ public class CardModel
         Type = type;
     }
 
-    public string Name { get; set; }
+    public string Name { get; private set; }
 
     /// <summary>
     /// A cards value.
     /// Only the Ace cards has a null value, as they can be either 1 or 11 depending on the hand.
     /// </summary>
     public int? Value { get; set; }
-    public string Type { get; set; }
+    public string Type { get; private set; }
 }

@@ -9,7 +9,15 @@ public class DealerModel
 
     public void InitializeHand(CardModel card)
     {
+        if (Hand.Count >= 1)
+            throw new InvalidOperationException("The Dealer is only supposed to have 1 face-up card and 1 hole card.");
+
         Hand.Add(card);
+
+        if (card.Value is null)
+            HandValue += 11;
+        else
+            HandValue += card.Value.Value;
     }
 
     public void InitializeHoleCard(CardModel card)
@@ -21,57 +29,51 @@ public class DealerModel
     {
         Hand.Add(card);
         CalculateHandValue();
-
-        if (HandValue > 21)
-            BustedHand = true;
     }
 
     public void CalculateHandValue()
     {
         HandValue = 0;
-        Hand.Add(HoleCard);
+        HandHasAce = false;
+        LowAceHand = false;
+        BustedHand = false;
 
-        foreach (var card in Hand)
+        int aces = 0;
+
+        IEnumerable<CardModel> cards = Hand;
+
+        if (HoleCard is not null) cards = cards.Append(HoleCard);   // counted, not added to Hand
+
+        foreach (var card in cards)
         {
-            if (card.Name.Contains("Ace"))
+            if (card.Value is null)    // ace — only aces have null Value, per CardModel
             {
                 HandHasAce = true;
+                aces++;
                 HandValue += 11;
             }
             else
             {
-                HandValue += card.Value ?? 0;
+                HandValue += card.Value.Value;
             }
         }
 
-        // If the hand value exceeds 21 and the hand contains an Ace, reduce the hand value by 10 (counting the Ace as 1 instead of 11),
-        // but only if we haven't already done so (LowAceHand is false)
-        if (HandValue > 21 && HandHasAce && !LowAceHand)
+        while (HandValue > 21 && aces > 0)   // demote one ace at a time, minimum needed
         {
-            foreach (var card in Hand) // For each ace in the hand, reduce the hand value by 10 (counting the Ace as 1 instead of 11)
-            {
-                if (card.Name.Contains("Ace")) // Check if the card is an Ace
-                {
-                    HandValue -= 10; // Reduce the hand value by 10 (counting the Ace as 1 instead of 11)
-                }
-            }
-            LowAceHand = true; // Set LowAceHand to true since we are now counting each Ace as 1
+            HandValue -= 10;
+            aces--;
+            LowAceHand = true;
         }
-        else if (HandValue > 21 && HandHasAce && LowAceHand)
-        {
-            BustedHand = true; // If the hand value exceeds 21 and we have already counted an Ace as 1, the dealer is busted
-        }
-        else if (HandValue > 21 && !HandHasAce)
-        {
-            BustedHand = true; // If the hand value exceeds 21 and we don't have an Ace to reduce from 11 to 1, the dealer is busted
-        }
+
+        if (HandValue > 21)
+            BustedHand = true;
     }
 
     public List<CardModel> Hand { get; private set; } = new List<CardModel>();
     public CardModel HoleCard { get; private set; }
     public int HandValue { get; set; } = 0;
 
-    public bool BustedHand { get; set; } = false;
-    public bool HandHasAce { get; set; } = false;
-    public bool LowAceHand { get; set; } = false;
+    public bool BustedHand { get; private set; } = false;
+    public bool HandHasAce { get; private set; } = false;
+    public bool LowAceHand { get; private set; } = false;
 }

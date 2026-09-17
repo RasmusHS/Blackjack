@@ -6,4 +6,8 @@
     <Project Path="src/Blackjack.CLI/Blackjack.CLI.csproj" />
     <Project Path="src/Blackjack.Core/Blackjack.Core.csproj" />
   </Folder>
+  <Folder Name="/src/Tests/">
+    <Project Path="src/Tests/Blackjack.Core.Test/Blackjack.Core.Test.csproj" Id="d87af894-eb44-40fa-acb7-7bbcfcb20c52" />
+    <Project Path="src/Tests/Helpers/Helpers.csproj" Id="b79f456d-21fd-4a58-aa55-e53c73accfc0" />
+  </Folder>
 </Solution>
