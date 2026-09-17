@@ -71,7 +71,7 @@ public class DealerModel
 
     public List<CardModel> Hand { get; private set; } = new List<CardModel>();
     public CardModel HoleCard { get; private set; }
-    public int HandValue { get; set; } = 0;
+    public int HandValue { get; private set; } = 0;
 
     public bool BustedHand { get; private set; } = false;
     public bool HandHasAce { get; private set; } = false;

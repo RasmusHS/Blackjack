@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using Blackjack.Core.Services;
+
 namespace Blackjack.Core.Models;
 
 public class GameModel
@@ -12,9 +15,9 @@ public class GameModel
         PlayerCount = Players.Count;
     }
 
-    public void StartGame()
+    public void StartGame(IDeck? deck = null)
     {
-        Deck = new DeckModel();
+        Deck = deck ?? new DeckModel();
         Dealer = new DealerModel();
         Players = new List<PlayerModel>();
         for (int i = 0; i < PlayerCount; i++)
@@ -24,40 +27,39 @@ public class GameModel
 
         // Cards should be dealt one at a time to each player and then to the dealer,
         // repeating until each player has two cards and the dealer has two cards (one face up and one face down).
-        var cardsToDeal = 2 * PlayerCount + 1;
         for (int i = 0; i < 2; i++)
         {
             for (int j = 0; j < PlayerCount; j++) // Inner loop to deal cards to each player
             {
-                if (Deck.ShuffledDeck.Count > 0)
+                if (Deck.Count > 0)
                 {
-                    Players[j].InitializeHand(Deck.ShuffledDeck.Pop());
+                    Players[j].InitializeHand(Deck.Draw());
                 }
             }
 
             if (i == 0) // Deal 1 face up card to the dealer, but only on the first iteration of the outer loop
             {
-                Dealer.InitializeHand(Deck.ShuffledDeck.Pop());
+                Dealer.InitializeHand(Deck.Draw());
             }
             else if (i == 1) // Deal 1 face down card to the dealer, but only on the second iteration of the outer loop
             {
-                Dealer.InitializeHoleCard(Deck.ShuffledDeck.Pop());
+                Dealer.InitializeHoleCard(Deck.Draw());
             }
         }
     }
 
     public void HitPlayer(PlayerModel player)
     {
-        if (Deck.ShuffledDeck.Count > 0)
+        if (!player.HasSplit)
         {
-            if (!player.HasSplit)
-            {
-                player.Hit(Deck.ShuffledDeck.Pop(), null);
-            }
-            else
-            {
-                player.Hit(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
-            }
+            if (Deck.Count > 0)
+                player.Hit(Deck.Draw(), null);
+        }
+        else
+        {
+            var main = !player.BustedHand && Deck.Count > 0 ? Deck.Draw() : null;
+            var split = !player.BustedSplit && Deck.Count > 0 ? Deck.Draw() : null;
+            player.Hit(main, split);
         }
     }
 
@@ -68,25 +70,25 @@ public class GameModel
 
     public void DoubleDownPlayer(PlayerModel player)
     {
-        if (Deck.ShuffledDeck.Count > 0)
-        {
-            if (!player.HasSplit)
-            {
-                player.DoubleDown(Deck.ShuffledDeck.Pop(), null);
-            }
-            else
-            {
-                player.DoubleDown(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
-            }
-        }
+        if (player.CanDoubleDown && Deck.Count > 0)
+            player.DoubleDown(Deck.Draw());
+        //if (!player.HasSplit && player.CanDoubleDown)
+        //{
+        //    if (Deck.Count > 0)
+        //        player.DoubleDown(Deck.Draw(), null);
+        //}
+        //else
+        //{
+        //    var main = !player.BustedHand && Deck.Count > 0 && player.CanDoubleDown ? Deck.Draw() : null;
+        //    var split = !player.BustedSplit && Deck.Count > 0 && player.CanDoubleDown ? Deck.Draw() : null;
+        //    player.DoubleDown(main, split);
+        //}
     }
 
     public void SplitPlayer(PlayerModel player)
     {
-        if (Deck.ShuffledDeck.Count > 0)
-        {
-            player.Split(Deck.ShuffledDeck.Pop(), Deck.ShuffledDeck.Pop());
-        }
+        if (player.SplitPossible && Deck.Count >= 2)
+            player.Split(Deck.Draw(), Deck.Draw());
     }
 
     /// <summary>
@@ -95,22 +97,18 @@ public class GameModel
     /// </summary>
     public void HitDealer()
     {
-        if (Deck.ShuffledDeck.Count > 0)
-        {
-            Dealer.CalculateHandValue();
+        Dealer.CalculateHandValue();
 
-            while (Dealer.HandValue < 17 && !Dealer.BustedHand) // Keep hitting until the dealer's hand value is 17 or higher, or the dealer busts
-            {
-                if (Deck.ShuffledDeck.Count == 0) break; // Break the loop if the deck is empty to avoid an exception
-                Dealer.Hit(Deck.ShuffledDeck.Pop());
-            }
+        while (Dealer.HandValue < 17 && !Dealer.BustedHand && Deck.Count > 0) // Keep hitting until the dealer's hand value is 17 or higher, or the dealer busts
+        {
+            Dealer.Hit(Deck.Draw());
         }
     }
 
     public Guid Id { get; private set; }
     public int PlayerCount { get; private set; }
 
-    public DeckModel Deck { get; private set; }
+    [NotMapped] public IDeck Deck { get; private set; }
     public DealerModel Dealer { get; private set; }
     public List<PlayerModel> Players { get; private set; }
 }

@@ -15,6 +15,6 @@ public class CardModel
     /// A cards value.
     /// Only the Ace cards has a null value, as they can be either 1 or 11 depending on the hand.
     /// </summary>
-    public int? Value { get; set; }
+    public int? Value { get; private set; }
     public string Type { get; private set; }
 }

@@ -53,4 +53,16 @@ public class DeckModelTests
         var actual = _deck.ShuffledDeck.Select(c => c.Name).OrderBy(n => n);
         Assert.Equal(expected, actual);   // same multiset ⇒ shuffle is a permutation, not a filter
     }
+
+    [Fact]
+    public void Draw_RemovesAndReturnsTopCard()
+    {
+        var top = _deck.ShuffledDeck.Peek();
+
+        var drawn = _deck.Draw();
+
+        Assert.Same(top, drawn);            // returned the top
+        Assert.Equal(51, _deck.Count);      // and removed it
+        Assert.Equal(51, _deck.ShuffledDeck.Count);
+    }
 }

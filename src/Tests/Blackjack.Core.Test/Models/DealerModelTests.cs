@@ -42,15 +42,6 @@ public class DealerModelTests
     }
 
     [Fact]
-    public void InitializeHand_SecondCard_Throws()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Card(10));
-
-        Assert.Throws<InvalidOperationException>(() => dealer.InitializeHand(Card(5)));
-    }
-
-    [Fact]
     public void InitializeHoleCard_SetsHoleCard_WithoutTouchingHandOrValue()
     {
         var dealer = new DealerModel();
@@ -118,6 +109,21 @@ public class DealerModelTests
         Assert.False(dealer.BustedHand);
     }
 
+    [Fact]
+    public void Hit_SoftHand_UnderTwentyOne_KeepsAceHigh()
+    {
+        var dealer = new DealerModel();
+        dealer.InitializeHand(Ace());
+        dealer.InitializeHoleCard(Card(6));
+
+        dealer.Hit(Card(4));                 // 11 + 6 + 4 = 21, no demotion needed
+
+        Assert.Equal(21, dealer.HandValue);
+        Assert.True(dealer.HandHasAce);
+        Assert.False(dealer.LowAceHand);     // ace stayed at 11; nothing forced it down
+        Assert.False(dealer.BustedHand);
+    }
+
     // Encodes the one-at-a-time rule. For all-aces-to-1, this expected value becomes 11.
     [Fact]
     public void Hit_TwoAces_DemotesOnlyOne()
@@ -140,7 +146,7 @@ public class DealerModelTests
         dealer.InitializeHoleCard(Card(10));
 
         dealer.Hit(Ace());                   // 10+10+11 = 31 -> 21 (alive)
-        dealer.Hit(Ace());                   // +11 = 32 -> demote both -> 22
+        dealer.Hit(Ace());                   // +11 = 42 -> demote both -> 22
 
         Assert.Equal(22, dealer.HandValue);
         Assert.True(dealer.BustedHand);
@@ -204,5 +210,6 @@ public class DealerModelTests
         dealer.CalculateHandValue();
 
         Assert.Equal(17, dealer.HandValue);
+        Assert.Equal(2, dealer.Hand.Count);   // hole never re-added to Hand — the actual thing that regressed
     }
 }

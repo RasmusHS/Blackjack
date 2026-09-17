@@ -1,11 +1,17 @@
+using Blackjack.Core.Services;
+
 namespace Blackjack.Core.Models;
 
-public class DeckModel
+public class DeckModel : IDeck
 {
     public DeckModel()
     {
         ShuffledDeck = new Stack<CardModel>(UnshuffledDeck.Shuffle());
     }
+
+    public int Count => ShuffledDeck.Count;
+
+    public CardModel Draw() => ShuffledDeck.Pop();
 
     public Stack<CardModel> ShuffledDeck { get; private set; }
 
