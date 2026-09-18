@@ -1,4 +1,6 @@
-﻿namespace Blackjack.Core.Models;
+﻿using Blackjack.Core.Services;
+
+namespace Blackjack.Core.Models;
 
 public class DealerModel
 {
@@ -25,6 +27,14 @@ public class DealerModel
         HoleCard = card;
     }
 
+    public void NewRound()
+    {
+        Hand.Clear();
+        BustedHand = false;
+        HandHasAce = false;
+        LowAceHand = false;
+    }
+
     public void Hit(CardModel card)
     {
         Hand.Add(card);
@@ -33,40 +43,8 @@ public class DealerModel
 
     public void CalculateHandValue()
     {
-        HandValue = 0;
-        HandHasAce = false;
-        LowAceHand = false;
-        BustedHand = false;
-
-        int aces = 0;
-
-        IEnumerable<CardModel> cards = Hand;
-
-        if (HoleCard is not null) cards = cards.Append(HoleCard);   // counted, not added to Hand
-
-        foreach (var card in cards)
-        {
-            if (card.Value is null)    // ace — only aces have null Value, per CardModel
-            {
-                HandHasAce = true;
-                aces++;
-                HandValue += 11;
-            }
-            else
-            {
-                HandValue += card.Value.Value;
-            }
-        }
-
-        while (HandValue > 21 && aces > 0)   // demote one ace at a time, minimum needed
-        {
-            HandValue -= 10;
-            aces--;
-            LowAceHand = true;
-        }
-
-        if (HandValue > 21)
-            BustedHand = true;
+        var cards = HoleCard is not null ? Hand.Append(HoleCard) : Hand;
+        (HandValue, HandHasAce, LowAceHand, BustedHand) = HandCalculator.Evaluate(cards);
     }
 
     public List<CardModel> Hand { get; private set; } = new List<CardModel>();

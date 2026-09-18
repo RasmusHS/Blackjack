@@ -1,15 +1,20 @@
+using Blackjack.Core.Services;
+
 namespace Blackjack.Core.Models;
 
 public class PlayerModel
 {
-    public PlayerModel(Guid gameId, string name, int points)
+    public PlayerModel(Guid gameId, string name, int? points)
     {
         Id = Guid.NewGuid();
         GameId = gameId;
         Name = name;
-        Points = points;
+        if (points is null || points <= 0)
+            Points = BaseValues.InitialPlayerBalance;
+        else
+            Points = (int)points;
 
-        Bet = 50;
+        Bet = BaseValues.Bet;
         Points -= Bet;
     }
 
@@ -23,6 +28,25 @@ public class PlayerModel
         if (Hand.Count == 2)
             CalculateHandValue();   // aces (incl. a pair) flow through here; no forced split, no deck reach
 
+    }
+
+    public void NewRound(int bet)
+    {
+        Hand.Clear();
+        HandValue = 0;
+        SplitHand.Clear();
+        SplitHandValue = 0;
+        HasSplit = false;
+        EndedTurn = false;
+        BustedHand = false;
+        BustedSplit = false;
+        HandHasAce = false;
+        LowAceHand = false;
+        SplitHasAce = false;
+        LowAceSplit = false;
+        Bet = bet;
+        Points -= Bet;
+        SplitBet = 0;
     }
 
     public void Hit(CardModel? card, CardModel? splitCard)
@@ -83,10 +107,10 @@ public class PlayerModel
 
     private void CalculateHandValue()
     {
-        (HandValue, HandHasAce, LowAceHand, BustedHand) = Evaluate(Hand);
+        (HandValue, HandHasAce, LowAceHand, BustedHand) = HandCalculator.Evaluate(Hand);
 
         if (HasSplit)
-            (SplitHandValue, SplitHasAce, LowAceSplit, BustedSplit) = Evaluate(SplitHand);
+            (SplitHandValue, SplitHasAce, LowAceSplit, BustedSplit) = HandCalculator.Evaluate(SplitHand);
 
         if (HasSplit)
         {
@@ -95,28 +119,6 @@ public class PlayerModel
         else if (BustedHand)
         {
             EndedTurn = true;
-        }
-
-        static (int value, bool hasAce, bool lowAce, bool busted) Evaluate(List<CardModel> cards)
-        {
-            int value = 0, aces = 0;
-            bool hasAce = false;
-
-            foreach (var card in cards)
-            {
-                if (card.Value is null) { hasAce = true; aces++; value += 11; }   // ace
-                else { value += card.Value.Value; }
-            }
-
-            bool lowAce = false;
-            while (value > 21 && aces > 0)   // demote one ace at a time, only as far as needed
-            {
-                value -= 10;
-                aces--;
-                lowAce = true;
-            }
-
-            return (value, hasAce, lowAce, value > 21);
         }
     }
 
@@ -136,6 +138,7 @@ public class PlayerModel
 
     public bool SplitPossible => !HasSplit && Hand.Count == 2 && Hand[0].Type == Hand[1].Type;
     public bool CanDoubleDown => !HasSplit && Hand.Count == 2;
+    public bool IsBlackjack => !HasSplit && Hand.Count == 2 && HandValue == 21;
     public bool HasSplit { get; private set; } = false;
     public bool EndedTurn { get; set; } = false;
     public bool BustedHand { get; private set; } = false;

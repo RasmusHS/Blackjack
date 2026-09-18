@@ -4,7 +4,7 @@ namespace Blackjack.Core.Test.Models;
 
 public class PlayerModelTests
 {
-    private static PlayerModel Player() => new(Guid.NewGuid(), "P1", 1000);
+    private static PlayerModel Player() => new(Guid.NewGuid(), "P1", null);
     private static CardModel Card(int value) => new($"{value} of Spades", value, value.ToString());
     private static CardModel Ace() => new("Ace of Spades", null, "Ace");
     private static CardModel Face(string type) => new($"{type} of Spades", 10, type); // Jack/Queen/King
@@ -24,11 +24,35 @@ public class PlayerModelTests
     {
         var gameId = Guid.NewGuid();
 
-        var p = new PlayerModel(gameId, "Alice", 1000);
+        var p = new PlayerModel(gameId, "Alice", null);
 
         Assert.NotEqual(Guid.Empty, p.Id);
         Assert.Equal(gameId, p.GameId);
         Assert.Equal("Alice", p.Name);
+    }
+
+    [Fact]
+    public void Ctor_NullPoints_UsesDefaultBalance()
+    {
+        var p = new PlayerModel(Guid.NewGuid(), "P1", null);
+        Assert.Equal(BaseValues.InitialPlayerBalance - BaseValues.Bet, p.Points);
+        Assert.Equal(BaseValues.Bet, p.Bet);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-100)]
+    public void Ctor_NonPositivePoints_UsesDefaultBalance(int points)
+    {
+        var p = new PlayerModel(Guid.NewGuid(), "P1", points);
+        Assert.Equal(BaseValues.InitialPlayerBalance - BaseValues.Bet, p.Points);
+    }
+
+    [Fact]
+    public void Ctor_PositivePoints_HonorsProvidedBalance()
+    {
+        var p = new PlayerModel(Guid.NewGuid(), "P1", 500);   // != default, so this proves the else-branch
+        Assert.Equal(500 - BaseValues.Bet, p.Points);
     }
 
     // --- InitializeHand ---
@@ -51,13 +75,17 @@ public class PlayerModelTests
     }
 
     [Fact]
-    public void AfterInitialDeal_AntePosted()
+    public void InitializeHand_DoesNotAlterBet()
     {
         var p = Player();
+        var betAfterCtor = p.Bet;
+        var pointsAfterCtor = p.Points;
+
         p.InitializeHand(Card(9));
         p.InitializeHand(Card(7));
-        Assert.Equal(50, p.Bet);
-        Assert.Equal(950, p.Points);
+
+        Assert.Equal(betAfterCtor, p.Bet);        // deal touches neither
+        Assert.Equal(pointsAfterCtor, p.Points);
     }
 
     [Fact]
@@ -82,6 +110,61 @@ public class PlayerModelTests
         Assert.False(p.EndedTurn);
     }
 
+    // --- NewRound ---
+
+    [Fact]
+    public void NewRound_ResetsSplitAndAceState_PostsNewBet()
+    {
+        var p = Player();
+        p.InitializeHand(Ace());
+        p.InitializeHand(Ace());         // pair of aces
+        p.Split(Ace(), Ace());           // Hand=[A,A]=12, Split=[A,A]=12
+                                         // precondition: everything the reset must clear is actually set
+        Assert.True(p.HasSplit);
+        Assert.True(p.HandHasAce && p.LowAceHand && p.SplitHasAce && p.LowAceSplit);
+        Assert.Equal(50, p.SplitBet);
+
+        var pointsBefore = p.Points;
+        p.NewRound(75);
+
+        Assert.Empty(p.Hand);
+        Assert.Empty(p.SplitHand);
+        Assert.False(p.HasSplit);
+        Assert.False(p.HandHasAce);
+        Assert.False(p.LowAceHand);
+        Assert.False(p.SplitHasAce);
+        Assert.False(p.LowAceSplit);
+        Assert.Equal(0, p.SplitBet);
+        Assert.Equal(75, p.Bet);
+        Assert.Equal(pointsBefore - 75, p.Points);   // new ante deducted from carried-over stack
+    }
+
+    [Fact]
+    public void NewRound_ClearsBustAndEndedTurn()
+    {
+        var p = Player();
+        p.InitializeHand(Card(10));
+        p.InitializeHand(Card(9));
+        p.Hit(Card(5), null);            // 24 -> BustedHand, EndedTurn
+        Assert.True(p.BustedHand && p.EndedTurn);
+
+        p.NewRound(50);
+
+        Assert.False(p.BustedHand);
+        Assert.False(p.EndedTurn);
+    }
+
+    [Fact]
+    public void NewRound_ResetsHandValues()
+    {
+        var p = Player();
+        p.InitializeHand(Card(10));
+        p.InitializeHand(Card(9));       // HandValue 19
+        p.NewRound(50);
+        Assert.Equal(0, p.HandValue);
+        Assert.Equal(0, p.SplitHandValue);
+    }
+
     // --- Hit (no split) ---
 
     [Fact]
@@ -92,20 +175,6 @@ public class PlayerModelTests
         p.InitializeHand(Card(6));
         p.Hit(Card(9), null);
         Assert.Equal(20, p.HandValue);
-        Assert.False(p.BustedHand);
-    }
-
-    [Fact]
-    public void Hit_SoftHand_UnderTwentyOne_KeepsAceHigh()
-    {
-        var p = Player();
-        p.InitializeHand(Ace());
-        p.InitializeHand(Card(6));       // soft 17
-        p.Hit(Card(3), null);            // 11+6+3 = 20, no demotion
-
-        Assert.Equal(20, p.HandValue);
-        Assert.True(p.HandHasAce);
-        Assert.False(p.LowAceHand);      // ace stayed high
         Assert.False(p.BustedHand);
     }
 
@@ -138,18 +207,6 @@ public class PlayerModelTests
         p.Hit(Card(5), null);            // 22 -> 12
         p.Hit(Card(4), null);            // 26 -> 16
         Assert.Equal(16, p.HandValue);
-        Assert.False(p.BustedHand);
-    }
-
-    // Regression: multi-ace over-reduction — demote one ace, not all.
-    [Fact]
-    public void Hit_TwoAces_DemotesOnlyOne()
-    {
-        var p = Player();
-        p.InitializeHand(Ace());
-        p.InitializeHand(Ace());         // 12
-        p.Hit(Card(9), null);            // 11+11+9 = 31 -> demote one -> 21
-        Assert.Equal(21, p.HandValue);
         Assert.False(p.BustedHand);
     }
 

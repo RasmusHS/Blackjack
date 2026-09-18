@@ -22,9 +22,32 @@ public class GameModel
         Players = new List<PlayerModel>();
         for (int i = 0; i < PlayerCount; i++)
         {
-            Players.Add(new PlayerModel(Id, $"Player {i + 1}", 1000));
+            Players.Add(new PlayerModel(Id, $"Player {i + 1}", null)); // Initialize players with default names and no points. Change null to a specific points value if desired.
         }
 
+        DealCards();
+    }
+
+    public void NewRound(DealerModel dealer, List<PlayerModel> players, IDeck? deck = null)
+    {
+        Deck = deck ?? new DeckModel();
+        if (Deck.Count is not 52)
+            throw new InvalidOperationException("The deck must have exactly 52 cards.");
+
+        Dealer = dealer;
+        Players = players;
+
+        Dealer.NewRound();
+        foreach (var player in Players)
+        {
+            player.NewRound(BaseValues.Bet); // Initialize each player with the base bet for the new round. Change BaseValues.Bet to a specific bet value if desired.
+        }
+
+        DealCards();
+    }
+
+    private void DealCards()
+    {
         // Cards should be dealt one at a time to each player and then to the dealer,
         // repeating until each player has two cards and the dealer has two cards (one face up and one face down).
         for (int i = 0; i < 2; i++)
@@ -44,6 +67,41 @@ public class GameModel
             else if (i == 1) // Deal 1 face down card to the dealer, but only on the second iteration of the outer loop
             {
                 Dealer.InitializeHoleCard(Deck.Draw());
+            }
+        }
+    }
+
+    public void Result(DealerModel dealer, List<PlayerModel> players)
+    {
+        bool dealerBust = dealer.BustedHand || dealer.HandValue > 21;
+
+        foreach (var player in players) 
+        {
+            bool mainAlive = !player.BustedHand && player.HandValue <= 21;
+
+            if (mainAlive)
+            {
+                if (dealerBust || player.HandValue > dealer.HandValue)
+                    player.Points += player.IsBlackjack
+                        ? (int)Math.Round(player.Bet * 2.5, MidpointRounding.AwayFromZero)
+                        : player.Bet * 2;
+                else if (player.HandValue == dealer.HandValue)
+                    player.Points += player.Bet; // push
+            }
+            player.Bet = 0;
+
+            // Split hand — never a natural blackjack
+            if (player.HasSplit)
+            {
+                bool splitAlive = !player.BustedSplit && player.SplitHandValue <= 21;
+                if (splitAlive)
+                {
+                    if (dealerBust || player.SplitHandValue > dealer.HandValue)
+                        player.Points += player.SplitBet * 2;
+                    else if (player.SplitHandValue == dealer.HandValue)
+                        player.Points += player.SplitBet; // push
+                }
+                player.SplitBet = 0;
             }
         }
     }
@@ -72,17 +130,6 @@ public class GameModel
     {
         if (player.CanDoubleDown && Deck.Count > 0)
             player.DoubleDown(Deck.Draw());
-        //if (!player.HasSplit && player.CanDoubleDown)
-        //{
-        //    if (Deck.Count > 0)
-        //        player.DoubleDown(Deck.Draw(), null);
-        //}
-        //else
-        //{
-        //    var main = !player.BustedHand && Deck.Count > 0 && player.CanDoubleDown ? Deck.Draw() : null;
-        //    var split = !player.BustedSplit && Deck.Count > 0 && player.CanDoubleDown ? Deck.Draw() : null;
-        //    player.DoubleDown(main, split);
-        //}
     }
 
     public void SplitPlayer(PlayerModel player)

@@ -8,7 +8,7 @@ namespace Blackjack.Core.Test.Models;
 public class GameModelTests
 {
     private static List<PlayerModel> Roster(int n) =>
-        Enumerable.Range(1, n).Select(_ => new PlayerModel(Guid.NewGuid(), "x", 1000)).ToList();
+        Enumerable.Range(1, n).Select(_ => new PlayerModel(Guid.NewGuid(), "x", null)).ToList();
 
     private static GameModel Started(int players)
     {
@@ -79,6 +79,35 @@ public class GameModelTests
         });
     }
 
+    // ---------------- NewRound ----------------
+
+    [Fact]
+    public void NewRound_ResetsAndRedealsFromFullDeck()
+    {
+        var dealer = new DealerModel();
+        var players = Roster(1);
+        var game = new GameModel(dealer, players);
+        game.StartGame();                 // play a round's worth of state onto them
+        game.HitPlayer(players[0]);       // dirty state: extra card, revalued hand
+
+        game.NewRound(dealer, players);   // real 52-card deck (guard requires exactly 52)
+
+        Assert.All(players, p => Assert.Equal(2, p.Hand.Count));   // redealt to two
+        Assert.Single(dealer.Hand);                                // face-up only
+        Assert.NotNull(dealer.HoleCard);
+        Assert.Equal(52 - (2 * 1 + 2), game.Deck.Count);           // 48 left after the deal
+    }
+
+    [Fact]
+    public void NewRound_RejectsNonFullDeck()
+    {
+        var game = new GameModel(new DealerModel(), Roster(1));
+        var shortDeck = new ScriptedDeck(new[] { Card(2), Card(3) }); // 2 cards, not 52
+
+        Assert.Throws<InvalidOperationException>(
+            () => game.NewRound(new DealerModel(), Roster(1), shortDeck));
+    }
+
     [Fact]
     public void StandPlayer_EndsPlayerTurn()
     {
@@ -98,7 +127,7 @@ public class GameModelTests
         game.StartGame(deck.Object);     // 0 players, but still draws 2 for the dealer
         deck.Invocations.Clear();        // measure only draws that follow, not StartGame's deal
 
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(new CardModel("10 of Spades", 10, "10"));
         player.InitializeHand(new CardModel("King of Spades", 10, "King")); // same value, types differ
 
@@ -128,7 +157,7 @@ public class GameModelTests
     public void HitPlayer_NoSplit_DrawsOneAndRevalues()
     {
         var game = StartedForPlayerAction(Card(6));
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(9));
         player.InitializeHand(Card(5));          // 14, no split
 
@@ -144,7 +173,7 @@ public class GameModelTests
     public void HitPlayer_Split_BothLive_DealsToBothHands()
     {
         var game = StartedForPlayerAction(Card(9), Card(7));
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(8));
         player.InitializeHand(Card(8));
         player.Split(Card(2), Card(3));          // Hand=[8,2]=10, Split=[8,3]=11
@@ -161,7 +190,7 @@ public class GameModelTests
     public void HitPlayer_Split_MainBusted_DealsOnlyToSplit()
     {
         var game = StartedForPlayerAction(Card(4), Card(2)); // Card(4) = the one live draw; Card(2) = spare
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(10));
         player.InitializeHand(Card(10));
         player.Split(Card(5), Card(2));          // Hand=[10,5]=15, Split=[10,2]=12
@@ -181,7 +210,7 @@ public class GameModelTests
     public void HitPlayer_Split_SplitBusted_DealsOnlyToMain()
     {
         var game = StartedForPlayerAction(Card(2), Card(2)); // first = live main draw, second = spare
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(10));
         player.InitializeHand(Card(10));
         player.Split(Card(5), Card(2));          // Hand=[10,5]=15, Split=[10,2]=12
@@ -202,7 +231,7 @@ public class GameModelTests
     public void DoubleDownPlayer_NoSplit_DrawsOneAndStands()
     {
         var game = StartedForPlayerAction(Card(9));
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(5));
         player.InitializeHand(Card(6));          // Bet 50, Points 950, value 11
 
@@ -219,7 +248,7 @@ public class GameModelTests
     public void DoubleDownPlayer_Split_Rejected_DrawsNothing()
     {
         var game = StartedForPlayerAction(Card(2), Card(4)); // spares; must stay in the deck
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(10));
         player.InitializeHand(Card(10));
         player.Split(Card(3), Card(5));       // HasSplit -> CanDoubleDown false
@@ -238,7 +267,7 @@ public class GameModelTests
     public void SplitPlayer_Splittable_DrawsTwoAndSplits()
     {
         var game = StartedForPlayerAction(Card(3), Card(5));
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(8));
         player.InitializeHand(Card(8));          // matching pair
 
@@ -255,7 +284,7 @@ public class GameModelTests
     public void SplitPlayer_DeckHasFewerThanTwo_DrawsNothing()
     {
         var game = StartedForPlayerAction(Card(3)); // only one card after the deal
-        var player = new PlayerModel(Guid.NewGuid(), "P1", 1000);
+        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(8));
         player.InitializeHand(Card(8));
 
