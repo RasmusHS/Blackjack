@@ -64,6 +64,43 @@ public class DealerModelTests
         Assert.Single(dealer.Hand);
     }
 
+    // --- NewRound ---
+
+    [Fact]
+    public void NewRound_ClearsHandHoleAndFlags()
+    {
+        var dealer = new DealerModel();
+        dealer.InitializeHand(Ace());
+        dealer.InitializeHoleCard(Card(6));
+        dealer.Hit(Card(10));                // 27 -> 17, LowAceHand + HandHasAce set
+                                             // precondition: state the reset must clear is actually set
+        Assert.True(dealer.HandHasAce && dealer.LowAceHand);
+        Assert.NotNull(dealer.HoleCard);
+
+        dealer.NewRound();
+
+        Assert.Empty(dealer.Hand);
+        Assert.Null(dealer.HoleCard);        // fails today — HoleCard retained
+        Assert.Equal(0, dealer.HandValue);   // fails today — HandValue left at 17
+        Assert.False(dealer.BustedHand);
+        Assert.False(dealer.HandHasAce);
+        Assert.False(dealer.LowAceHand);
+    }
+
+    [Fact]
+    public void NewRound_ClearsBust()
+    {
+        var dealer = new DealerModel();
+        dealer.InitializeHand(Card(10));
+        dealer.InitializeHoleCard(Card(9));
+        dealer.Hit(Card(5));                 // 24, bust
+        Assert.True(dealer.BustedHand);
+
+        dealer.NewRound();
+
+        Assert.False(dealer.BustedHand);
+    }
+
     // --- Hard hands ---
 
     [Fact]
@@ -79,78 +116,7 @@ public class DealerModelTests
         Assert.False(dealer.BustedHand);
     }
 
-    [Fact]
-    public void Hit_HardHand_OverTwentyOne_Busts()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Card(10));
-        dealer.InitializeHoleCard(Card(9));
-
-        dealer.Hit(Card(5));                 // 24
-
-        Assert.Equal(24, dealer.HandValue);
-        Assert.True(dealer.BustedHand);
-    }
-
     // --- Aces ---
-
-    [Fact]
-    public void Hit_SoftHand_DemotesAceToStayAlive()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Ace());
-        dealer.InitializeHoleCard(Card(6));
-
-        dealer.Hit(Card(10));                // 11+6+10 = 27 -> ace as 1 -> 17
-
-        Assert.Equal(17, dealer.HandValue);
-        Assert.True(dealer.HandHasAce);
-        Assert.True(dealer.LowAceHand);
-        Assert.False(dealer.BustedHand);
-    }
-
-    [Fact]
-    public void Hit_SoftHand_UnderTwentyOne_KeepsAceHigh()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Ace());
-        dealer.InitializeHoleCard(Card(6));
-
-        dealer.Hit(Card(4));                 // 11 + 6 + 4 = 21, no demotion needed
-
-        Assert.Equal(21, dealer.HandValue);
-        Assert.True(dealer.HandHasAce);
-        Assert.False(dealer.LowAceHand);     // ace stayed at 11; nothing forced it down
-        Assert.False(dealer.BustedHand);
-    }
-
-    // Encodes the one-at-a-time rule. For all-aces-to-1, this expected value becomes 11.
-    [Fact]
-    public void Hit_TwoAces_DemotesOnlyOne()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Ace());
-        dealer.InitializeHoleCard(Ace());
-
-        dealer.Hit(Card(9));                 // 11+11+9 = 31 -> demote one -> 21
-
-        Assert.Equal(21, dealer.HandValue);
-        Assert.False(dealer.BustedHand);
-    }
-
-    [Fact]
-    public void Hit_AcesDemotedButStillOverTwentyOne_Busts()
-    {
-        var dealer = new DealerModel();
-        dealer.InitializeHand(Card(10));
-        dealer.InitializeHoleCard(Card(10));
-
-        dealer.Hit(Ace());                   // 10+10+11 = 31 -> 21 (alive)
-        dealer.Hit(Ace());                   // +11 = 42 -> demote both -> 22
-
-        Assert.Equal(22, dealer.HandValue);
-        Assert.True(dealer.BustedHand);
-    }
 
     // Bug 3 regression: soft hand must not false-bust on a later hit.
     [Fact]

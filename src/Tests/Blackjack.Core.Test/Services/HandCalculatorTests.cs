@@ -44,4 +44,8 @@ public class HandCalculatorTests
     [Fact]
     public void HasAce_SetForAnyAce()
         => Assert.True(HandCalculator.Evaluate(new[] { Ace(), Card(5) }).hasAce);
+
+    [Fact]
+    public void EmptyHand_IsZeroAndNotBusted()
+        => Assert.Equal((0, false, false, false), HandCalculator.Evaluate(Array.Empty<CardModel>()));
 }

@@ -30,6 +30,8 @@ public class DealerModel
     public void NewRound()
     {
         Hand.Clear();
+        HoleCard = null;
+        HandValue = 0;
         BustedHand = false;
         HandHasAce = false;
         LowAceHand = false;
@@ -48,7 +50,7 @@ public class DealerModel
     }
 
     public List<CardModel> Hand { get; private set; } = new List<CardModel>();
-    public CardModel HoleCard { get; private set; }
+    public CardModel? HoleCard { get; private set; }
     public int HandValue { get; private set; } = 0;
 
     public bool BustedHand { get; private set; } = false;

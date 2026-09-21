@@ -16,4 +16,12 @@ public class CardModelTests
         Assert.Equal(value, card.Value);
         Assert.Equal(type, card.Type);
     }
+
+    [Fact]
+    public void Ctor_AceWithNonNullValue_Throws()
+    => Assert.Throws<ArgumentException>(() => new CardModel("Ace of Spades", 11, "Ace"));
+
+    [Fact]
+    public void Ctor_NonAceWithNullValue_Throws()
+        => Assert.Throws<ArgumentException>(() => new CardModel("5 of Spades", null, "5"));
 }
