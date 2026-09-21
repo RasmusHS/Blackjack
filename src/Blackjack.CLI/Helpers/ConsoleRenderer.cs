@@ -35,7 +35,7 @@ public static class ConsoleRenderer
     private static string Cards(IEnumerable<CardModel> cards) =>
         string.Join(", ", cards.Select(c => c.Name));
 
-    private static string Flag(bool busted) => busted ? "  ← BUST" : "";
+    private static string Flag(bool busted) => busted ? "  <- BUST" : "";
 
     private static int LiveBet(PlayerModel p) =>
         (p.BustedHand ? 0 : p.Bet)

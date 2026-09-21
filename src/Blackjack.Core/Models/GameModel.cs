@@ -13,29 +13,32 @@ public class GameModel
         Dealer = dealer;
         Players = players;
         PlayerCount = Players.Count;
+
+        foreach (var player in Players)
+            player.GameId = Id;
     }
 
     public void StartGame(IDeck? deck = null)
     {
         Deck = deck ?? new DeckModel();
-        //Dealer = new DealerModel();
-        //Players = new List<PlayerModel>();
-        //for (int i = 0; i < PlayerCount; i++)
-        //{
-        //    Players.Add(new PlayerModel(Id, $"Player {i + 1}", null)); // Initialize players with default names and no points. Change null to a specific points value if desired.
-        //}
 
         DealCards();
     }
 
     public void NewRound(DealerModel dealer, List<PlayerModel> players, IDeck? deck = null)
     {
-        Deck = deck ?? new DeckModel();
-        if (Deck.Count is not 52)
+        var newDeck = deck ?? new DeckModel();
+        if (newDeck.Count is not 52)
             throw new InvalidOperationException("The deck must have exactly 52 cards.");
+        if (players.Any(p => p.Points < BaseValues.Bet))
+            throw new InvalidOperationException("A player cannot cover the bet.");
 
+        Deck = newDeck;
         Dealer = dealer;
         Players = players;
+
+        foreach (var player in Players)
+            player.GameId = Id;
 
         Dealer.NewRound();
         foreach (var player in Players)
@@ -108,17 +111,8 @@ public class GameModel
 
     public void HitPlayer(PlayerModel player)
     {
-        if (!player.HasSplit)
-        {
-            if (Deck.Count > 0)
-                player.Hit(Deck.Draw(), null);
-        }
-        else
-        {
-            var main = !player.BustedHand && Deck.Count > 0 ? Deck.Draw() : null;
-            var split = !player.BustedSplit && Deck.Count > 0 ? Deck.Draw() : null;
-            player.Hit(main, split);
-        }
+        if (Deck.Count > 0)
+            player.Hit(Deck.Draw());
     }
 
     public void StandPlayer(PlayerModel player)

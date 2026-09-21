@@ -145,7 +145,7 @@ public class PlayerModelTests
         var p = Player();
         p.InitializeHand(Card(10));
         p.InitializeHand(Card(9));
-        p.Hit(Card(5), null);            // 24 -> BustedHand, EndedTurn
+        p.Hit(Card(5));            
         Assert.True(p.BustedHand && p.EndedTurn);
 
         p.NewRound(50);
@@ -173,7 +173,7 @@ public class PlayerModelTests
         var p = Player();
         p.InitializeHand(Card(5));
         p.InitializeHand(Card(6));
-        p.Hit(Card(9), null);
+        p.Hit(Card(9));
         Assert.Equal(20, p.HandValue);
         Assert.False(p.BustedHand);
     }
@@ -184,7 +184,7 @@ public class PlayerModelTests
         var p = Player();
         p.InitializeHand(Card(10));
         p.InitializeHand(Card(9));
-        p.Hit(Card(5), null);            // 24
+        p.Hit(Card(5));            // 24
         Assert.True(p.BustedHand);
         Assert.True(p.EndedTurn);
     }
@@ -193,7 +193,7 @@ public class PlayerModelTests
     public void Hit_DisablesSplit()
     {
         var p = Pair(8);
-        p.Hit(Card(2), null);            // Count -> 3
+        p.Hit(Card(2));            // Count -> 3
         Assert.False(p.SplitPossible);
     }
 
@@ -204,8 +204,8 @@ public class PlayerModelTests
         var p = Player();
         p.InitializeHand(Ace());
         p.InitializeHand(Card(6));       // 17
-        p.Hit(Card(5), null);            // 22 -> 12
-        p.Hit(Card(4), null);            // 26 -> 16
+        p.Hit(Card(5));            // 22 -> 12
+        p.Hit(Card(4));            // 26 -> 16
         Assert.Equal(16, p.HandValue);
         Assert.False(p.BustedHand);
     }
@@ -241,11 +241,69 @@ public class PlayerModelTests
     public void SplitPossible_FalseAfterHit()
     {
         var p = Pair(8);
-        p.Hit(Card(2), null);
+        p.Hit(Card(2));
         Assert.False(p.SplitPossible);
     }
 
+    [Fact]
+    public void SplitPossible_FalseWhenCannotAffordSecondBet()
+    {
+        var p = new PlayerModel(Guid.NewGuid(), "P1", 60);   // 60 − 50 ante = 10 left, Bet 50
+        p.InitializeHand(Card(8));
+        p.InitializeHand(Card(8));
+
+        Assert.True(p.Points < p.Bet);                        // precondition
+        Assert.False(p.SplitPossible);                        // matching pair, can't cover the extra bet
+    }
+
     // --- Split ---
+
+    [Fact]
+    public void Split_MainBusts_AdvancesToSplit_TurnContinues()
+    {
+        var p = Pair(10);
+        p.Split(Card(5), Card(2));   // main=[10,5]=15 active, split=[10,2]=12
+
+        p.Hit(Card(9));              // main 24 BUST -> resolves, active advances to split
+        Assert.True(p.BustedHand);
+        Assert.False(p.EndedTurn);   // split still to play
+
+        p.Hit(Card(3));              // now targets split: [10,2,3]=15
+        Assert.Equal(3, p.Hand.Count);        // main frozen at bust
+        Assert.Equal(15, p.SplitHandValue);
+        Assert.False(p.BustedSplit);
+    }
+
+    [Fact]
+    public void Split_MainBusts_ThenStandSplit_EndsTurn()
+    {
+        var p = Pair(10);
+        p.Split(Card(5), Card(6));   // main=[10,5]=15 active, split=[10,6]=16
+        p.Hit(Card(9));              // main 24 bust -> advance to split
+        Assert.False(p.EndedTurn);
+
+        p.Stand();                   // must land on split (main resolved by bust)
+        Assert.True(p.SplitStood);
+        Assert.True(p.EndedTurn);
+    }
+
+    [Fact]
+    public void Split_StandMain_ThenPlaySplit()
+    {
+        var p = Pair(10);
+        p.Split(Card(5), Card(6));   // main=[10,5]=15, split=[10,6]=16
+
+        p.Stand();                   // resolve main by standing -> active = split
+        Assert.False(p.EndedTurn);
+        Assert.Equal(15, p.HandValue);
+
+        p.Hit(Card(2));              // targets split: 16+2=18
+        Assert.Equal(18, p.SplitHandValue);
+        Assert.Equal(2, p.Hand.Count);        // main untouched after stand
+
+        p.Stand();                   // resolve split -> turn over
+        Assert.True(p.EndedTurn);
+    }
 
     [Fact]
     public void Split_MatchingPair_CreatesTwoHands_AndCharges()
@@ -279,8 +337,10 @@ public class PlayerModelTests
     public void Split_AceInSplitHand_DemotesWhenOver()
     {
         var p = Pair(10);
-        p.Split(Card(3), Ace());         // Hand=[10,3]=13, Split=[10,Ace]=21
-        p.Hit(Card(8), Card(5));         // Hand=[10,3,8]=21, Split=[10,Ace,5]=26 -> demote -> 16
+        p.Split(Card(3), Ace());     // main=[10,3]=13, split=[10,Ace]=21
+        p.Hit(Card(8));              // main [10,3,8]=21
+        p.Stand();                   // resolve main -> active split
+        p.Hit(Card(5));              // split [10,Ace,5]=26 -> demote -> 16
 
         Assert.Equal(16, p.SplitHandValue);
         Assert.True(p.LowAceSplit);
@@ -305,7 +365,7 @@ public class PlayerModelTests
     public void Split_AfterHit_NoOp()
     {
         var p = Pair(4);
-        p.Hit(Card(2), null);            // [4,4,2] = 10, Count -> 3
+        p.Hit(Card(2));            // [4,4,2] = 10, Count -> 3
 
         p.Split(Card(3), Card(5));
 
@@ -313,48 +373,30 @@ public class PlayerModelTests
     }
 
     [Fact]
-    public void Split_OneHandBusts_OtherLive_TurnContinues()
-    {
-        var p = Pair(10);
-        p.Split(Card(5), Card(2));       // Hand=[10,5]=15, Split=[10,2]=12
-
-        p.Hit(Card(9), Card(3));         // Hand=24 (bust), Split=15 (live)
-
-        Assert.True(p.BustedHand);
-        Assert.False(p.BustedSplit);
-        Assert.False(p.EndedTurn);       // still a live hand
-    }
-
-    [Fact]
     public void Split_BothHandsBust_EndsTurn()
     {
         var p = Pair(10);
-        p.Split(Card(5), Card(4));       // Hand=15, Split=14
+        p.Split(Card(5), Card(4));   // main=[10,5]=15 active, split=[10,4]=14
 
-        p.Hit(Card(9), Card(10));        // Hand=24, Split=24
+        p.Hit(Card(9));              // main 24 bust -> advance
+        p.Hit(Card(10));             // split 24 bust
 
         Assert.True(p.BustedHand);
         Assert.True(p.BustedSplit);
         Assert.True(p.EndedTurn);
     }
 
-    // Bug 4: busted hand receives no further cards — GameModel passes null for it.
-    [Fact]
-    public void Split_NullForBustedHand_DealsOnlyToLiveHand()
-    {
-        var p = Pair(10);
-        p.Split(Card(5), Card(2));       // Hand=15, Split=12
-        p.Hit(Card(9), Card(3));         // Hand=24 (bust), Split=15
-
-        p.Hit(null, Card(4));            // busted Hand skipped; Split=[10,2,3,4]=19
-
-        Assert.Equal(3, p.Hand.Count);
-        Assert.Equal(24, p.HandValue);
-        Assert.Equal(19, p.SplitHandValue);
-        Assert.False(p.BustedSplit);
-    }
-
     // --- DoubleDown ---
+
+    [Fact]
+    public void CanDoubleDown_FalseWhenCannotAffordExtraBet()
+    {
+        var p = new PlayerModel(Guid.NewGuid(), "P1", 60);
+        p.InitializeHand(Card(5));
+        p.InitializeHand(Card(6));
+
+        Assert.False(p.CanDoubleDown);
+    }
 
     // Regression: Points -= Points - (Bet/2) wiped the stack; deduction is the added wager only.
     [Fact]
@@ -396,7 +438,7 @@ public class PlayerModelTests
         var p = Player();
         p.InitializeHand(Card(5));
         p.InitializeHand(Card(6));
-        p.Hit(Card(2), null);            // Hand.Count -> 3
+        p.Hit(Card(2));            // Hand.Count -> 3
         var pointsBefore = p.Points;
 
         p.DoubleDown(Card(9));

@@ -37,7 +37,8 @@ public class PlayerModel
         SplitHand.Clear();
         SplitHandValue = 0;
         HasSplit = false;
-        EndedTurn = false;
+        HandStood = false;
+        SplitStood = false;
         BustedHand = false;
         BustedSplit = false;
         HandHasAce = false;
@@ -49,25 +50,22 @@ public class PlayerModel
         SplitBet = 0;
     }
 
-    public void Hit(CardModel? card, CardModel? splitCard)
+    public void Hit(CardModel card)
     {
-        if (!HasSplit)
-        {
-            if (card is not null)
-                Hand.Add(card);
-        }
-        else
-        {
-            if (card is not null && !BustedHand) Hand.Add(card);
-            if (splitCard is not null && !BustedSplit) SplitHand.Add(splitCard);
-        }
+        if (!HasSplit || !HandResolved)
+            Hand.Add(card);
+        else if (!SplitResolved)
+            SplitHand.Add(card);
 
         CalculateHandValue();
     }
 
     public void Stand()
     {
-        EndedTurn = true;
+        if (!HasSplit || !HandResolved)
+            HandStood = true;
+        else if (!SplitResolved)
+            SplitStood = true;
     }
 
     public void DoubleDown(CardModel card)
@@ -111,19 +109,10 @@ public class PlayerModel
 
         if (HasSplit)
             (SplitHandValue, SplitHasAce, LowAceSplit, BustedSplit) = HandCalculator.Evaluate(SplitHand);
-
-        if (HasSplit)
-        {
-            if (BustedHand && BustedSplit) EndedTurn = true;   // both hands dead = fully bust
-        }
-        else if (BustedHand)
-        {
-            EndedTurn = true;
-        }
     }
 
     public Guid Id { get; private set; }
-    public Guid GameId { get; private set; }
+    public Guid GameId { get; internal set; }
 
     public string Name { get; private set; }
 
@@ -136,16 +125,22 @@ public class PlayerModel
     public int Bet { get; set; } = 0;
     public int SplitBet { get; set; } = 0;
 
-    public bool SplitPossible => !HasSplit && Hand.Count == 2 && Hand[0].Type == Hand[1].Type;
-    public bool CanDoubleDown => !HasSplit && Hand.Count == 2;
+    public bool SplitPossible => !HasSplit && Hand.Count == 2 && Hand[0].Type == Hand[1].Type && Points >= Bet;
+    public bool CanDoubleDown => !HasSplit && Hand.Count == 2 && Points >= Bet;
     public bool IsBlackjack => !HasSplit && Hand.Count == 2 && HandValue == 21;
+    public bool HandResolved => BustedHand || HandStood;
+    public bool SplitResolved => BustedSplit || SplitStood;
+    public bool EndedTurn => HandResolved && (!HasSplit || SplitResolved);
+
     public bool HasSplit { get; private set; } = false;
-    public bool EndedTurn { get; set; } = false;
+    public bool HandStood { get; private set; }
+    public bool SplitStood { get; private set; }
+    
     public bool BustedHand { get; private set; } = false;
     public bool BustedSplit { get; private set; } = false;
     public bool HandHasAce { get; private set; } = false;
-    public bool LowAceHand { get; private set; } = false;
     public bool SplitHasAce { get; private set; } = false;
+    public bool LowAceHand { get; private set; } = false;
     public bool LowAceSplit { get; private set; } = false;
 
     public GameModel Game { get; set; }

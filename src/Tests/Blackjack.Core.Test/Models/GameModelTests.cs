@@ -25,6 +25,7 @@ public class GameModelTests
         Assert.Equal(3, a.PlayerCount);
         Assert.NotEqual(Guid.Empty, a.Id);
         Assert.NotEqual(a.Id, b.Id);
+        Assert.All(a.Players, p => Assert.Equal(a.Id, p.GameId));   // FK stamped on each player
     }
 
     [Theory]
@@ -66,14 +67,12 @@ public class GameModelTests
     }
 
     [Fact]
-    public void StartGame_NamesAndAntesPlayers()
+    public void StartGame_AntesPlayers()
     {
         var game = Started(2);
-        //Assert.Equal("Player 1", game.Players[0].Name);
-        //Assert.Equal("Player 2", game.Players[1].Name);
         Assert.All(game.Players, p =>
         {
-            Assert.Equal(game.Id, p.GameId);
+            Assert.Equal(game.Id, p.GameId); // survives the deal
             Assert.Equal(50, p.Bet);
             Assert.Equal(950, p.Points);
         });
@@ -96,6 +95,7 @@ public class GameModelTests
         Assert.Single(dealer.Hand);                                // face-up only
         Assert.NotNull(dealer.HoleCard);
         Assert.Equal(52 - (2 * 1 + 2), game.Deck.Count);           // 48 left after the deal
+        Assert.Equal(BaseValues.InitialPlayerBalance - BaseValues.Bet * 2, players[0].Points); // two antes: ctor + NewRound
     }
 
     [Fact]
@@ -106,6 +106,18 @@ public class GameModelTests
 
         Assert.Throws<InvalidOperationException>(
             () => game.NewRound(new DealerModel(), Roster(1), shortDeck));
+    }
+
+    [Fact]
+    public void NewRound_RejectsUnaffordableBet()
+    {
+        var player = Roster(1)[0];
+        player.Points = 10;                          // below BaseValues.Bet
+
+        var game = new GameModel(new DealerModel(), new List<PlayerModel> { player });
+
+        Assert.Throws<InvalidOperationException>(
+            () => game.NewRound(new DealerModel(), new List<PlayerModel> { player }));
     }
 
     [Fact]
@@ -170,59 +182,43 @@ public class GameModelTests
     }
 
     [Fact]
-    public void HitPlayer_Split_BothLive_DealsToBothHands()
+    public void HitPlayer_Split_TargetsMainThenSplit()
     {
         var game = StartedForPlayerAction(Card(9), Card(7));
         var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(8));
         player.InitializeHand(Card(8));
-        player.Split(Card(2), Card(3));          // Hand=[8,2]=10, Split=[8,3]=11
+        player.Split(Card(2), Card(3));   // main=[8,2]=10 active, split=[8,3]=11
 
-        game.HitPlayer(player);                  // main<-9 (19), split<-7 (18)
-
+        game.HitPlayer(player);           // one card -> main [8,2,9]=19
         Assert.Equal(19, player.HandValue);
+        Assert.Equal(11, player.SplitHandValue);  // split untouched
+        Assert.Equal(1, game.Deck.Count);          // drew exactly one
+
+        game.StandPlayer(player);         // resolve main -> active split
+        game.HitPlayer(player);           // one card -> split [8,3,7]=18
         Assert.Equal(18, player.SplitHandValue);
-        Assert.Equal(0, game.Deck.Count);        // drew exactly two
+        Assert.Equal(3, player.Hand.Count);        // main frozen
+        Assert.Equal(0, game.Deck.Count);
     }
 
-    // The point of the whole seam: a busted hand gets null, not a card.
     [Fact]
-    public void HitPlayer_Split_MainBusted_DealsOnlyToSplit()
+    public void HitPlayer_Split_MainBusts_NextHitTargetsSplit()
     {
-        var game = StartedForPlayerAction(Card(4), Card(2)); // Card(4) = the one live draw; Card(2) = spare
+        var game = StartedForPlayerAction(Card(9), Card(3));
         var player = new PlayerModel(Guid.NewGuid(), "P1", null);
         player.InitializeHand(Card(10));
         player.InitializeHand(Card(10));
-        player.Split(Card(5), Card(2));          // Hand=[10,5]=15, Split=[10,2]=12
-        player.Hit(Card(9), Card(3));            // Hand=[10,5,9]=24 BUST, Split=[10,2,3]=15
+        player.Split(Card(5), Card(2));   // main=[10,5]=15 active, split=[10,2]=12
 
-        game.HitPlayer(player);                  // main busted -> null; split <- 4
+        game.HitPlayer(player);           // main 24 bust -> auto-advance
+        Assert.True(player.BustedHand);
+        Assert.False(player.EndedTurn);
 
-        Assert.Equal(3, player.Hand.Count);      // frozen
-        Assert.Equal(24, player.HandValue);
-        Assert.Equal(4, player.SplitHand.Count); // grew
-        Assert.Equal(19, player.SplitHandValue);
-        Assert.Equal(1, game.Deck.Count);        // spare untouched -> drew exactly one
-    }
-
-    // Mirror: catches an asymmetric routing bug where only main-busted is handled.
-    [Fact]
-    public void HitPlayer_Split_SplitBusted_DealsOnlyToMain()
-    {
-        var game = StartedForPlayerAction(Card(2), Card(2)); // first = live main draw, second = spare
-        var player = new PlayerModel(Guid.NewGuid(), "P1", null);
-        player.InitializeHand(Card(10));
-        player.InitializeHand(Card(10));
-        player.Split(Card(5), Card(2));          // Hand=[10,5]=15, Split=[10,2]=12
-        player.Hit(Card(3), Card(10));           // Hand=[10,5,3]=18, Split=[10,2,10]=22 BUST
-
-        game.HitPlayer(player);                  // split busted -> null; main <- 2
-
-        Assert.Equal(4, player.Hand.Count);
-        Assert.Equal(20, player.HandValue);
-        Assert.Equal(3, player.SplitHand.Count); // frozen
-        Assert.True(player.BustedSplit);
-        Assert.Equal(1, game.Deck.Count);
+        game.HitPlayer(player);           // one card -> split [10,2,3]=15
+        Assert.Equal(3, player.Hand.Count);        // main frozen at bust
+        Assert.Equal(15, player.SplitHandValue);
+        Assert.Equal(0, game.Deck.Count);
     }
 
     // ---------------- DoubleDownPlayer ----------------

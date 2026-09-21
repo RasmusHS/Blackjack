@@ -80,8 +80,8 @@ public class DealerModelTests
         dealer.NewRound();
 
         Assert.Empty(dealer.Hand);
-        Assert.Null(dealer.HoleCard);        // fails today — HoleCard retained
-        Assert.Equal(0, dealer.HandValue);   // fails today — HandValue left at 17
+        Assert.Null(dealer.HoleCard);        // HoleCard cleared
+        Assert.Equal(0, dealer.HandValue);   // HandValue reset
         Assert.False(dealer.BustedHand);
         Assert.False(dealer.HandHasAce);
         Assert.False(dealer.LowAceHand);

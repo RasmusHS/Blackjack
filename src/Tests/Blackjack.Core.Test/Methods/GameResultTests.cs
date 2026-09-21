@@ -34,7 +34,7 @@ public class GameResultTests
     public void Result_PlayerBusts_NoCredit()
     {
         var (p, baseline) = PlayerWith(Ten("King"), Card(9));
-        p.Hit(Card(5), null);                                   // 24, bust
+        p.Hit(Card(5));                                   // 24, bust
         Game().Result(DealerWith(Ten("King"), Card(8)), new() { p });   // dealer 18
         Assert.Equal(baseline, p.Points);
     }
@@ -90,7 +90,7 @@ public class GameResultTests
     public void Result_DrawnTwentyOne_PaysEvenMoney_NotBlackjack()
     {
         var (p, baseline) = PlayerWith(Card(7), Card(6));       // 13
-        p.Hit(Card(8), null);                                   // 21, three cards
+        p.Hit(Card(8));                                   // 21, three cards
         Assert.False(p.IsBlackjack);
         Game().Result(DealerWith(Ten("King"), Card(9)), new() { p });   // 19
         Assert.Equal(baseline + BaseValues.Bet * 2, p.Points); // 2x, not 2.5x
@@ -104,11 +104,13 @@ public class GameResultTests
         var p = new PlayerModel(Guid.NewGuid(), "P1", null);
         p.InitializeHand(Card(8));
         p.InitializeHand(Card(8));
-        p.Split(Card(10), Card(3));            // Hand=[8,10]=18, Split=[8,3]=11
-        var baseline = p.Points;               // after both antes
-        p.Hit(null, Card(9));                  // Split=[8,3,9]=20
-        Game().Result(DealerWith(Ten("King"), Card(9)), new() { p });   // dealer 19: main 18 loses, split 20 wins
-        Assert.Equal(baseline + BaseValues.Bet * 2, p.Points); // split only, 2x (never 2.5x on a split)
+        p.Split(Card(10), Card(3));            // main=[8,10]=18 active, split=[8,3]=11
+        var baseline = p.Points;
+        p.Stand();                             // resolve main (18) -> active split
+        p.Hit(Card(9));                        // split [8,3,9]=20
+        Game().Result(DealerWith(Ten("King"), Card(9)), new() { p });  // dealer 19: main 18 loses, split 20 wins
+
+        Assert.Equal(baseline + BaseValues.Bet * 2, p.Points);
     }
 
     [Fact]
