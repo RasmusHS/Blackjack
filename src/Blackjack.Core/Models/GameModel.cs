@@ -18,12 +18,12 @@ public class GameModel
     public void StartGame(IDeck? deck = null)
     {
         Deck = deck ?? new DeckModel();
-        Dealer = new DealerModel();
-        Players = new List<PlayerModel>();
-        for (int i = 0; i < PlayerCount; i++)
-        {
-            Players.Add(new PlayerModel(Id, $"Player {i + 1}", null)); // Initialize players with default names and no points. Change null to a specific points value if desired.
-        }
+        //Dealer = new DealerModel();
+        //Players = new List<PlayerModel>();
+        //for (int i = 0; i < PlayerCount; i++)
+        //{
+        //    Players.Add(new PlayerModel(Id, $"Player {i + 1}", null)); // Initialize players with default names and no points. Change null to a specific points value if desired.
+        //}
 
         DealCards();
     }

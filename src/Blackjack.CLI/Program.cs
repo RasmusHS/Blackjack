@@ -1,10 +1,22 @@
 ﻿using System.CommandLine;
-using Microsoft.Extensions.DependencyInjection;
 
-var services = new ServiceCollection();
+//var services = new ServiceCollection();
 
-var rootCommand = new RootCommand();
+var nameOption = new Option<string?>("--name", "-n") { Description = "Player name" };
+
+var root = new RootCommand("Blackjack — 1 player vs dealer");
+root.Options.Add(nameOption);
+
+root.SetAction(parseResult =>
+{
+    var name = parseResult.GetValue(nameOption);
+    if (string.IsNullOrWhiteSpace(name))
+        name = Prompt.ForName();
+
+    GameSession.Run(name);
+    return 0;
+});
 
 //rootCommand.Subcommands.Add();
 
-return rootCommand.Parse(args).Invoke();
+return root.Parse(args).Invoke();

@@ -19,4 +19,8 @@
     <ProjectReference Include="..\Blackjack.Core\Blackjack.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Commands\" />
+  </ItemGroup>
+
 </Project>
