@@ -1,0 +1,8 @@
+services:
+  blackjack:
+    build:
+      context: .
+      dockerfile: src/Blackjack.CLI/Dockerfile
+    image: ${DOCKER_REGISTRY-}blackjack-cli
+    stdin_open: true   # -i : keep STDIN open for ReadLine/ReadKey
+    tty: true          # -t : allocate a TTY — ReadKey and Console.Clear require one

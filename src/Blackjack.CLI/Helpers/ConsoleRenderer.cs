@@ -4,6 +4,8 @@ namespace Blackjack.CLI.Helpers;
 
 public static class ConsoleRenderer
 {
+    private static string Marker(bool active) => active ? "> " : "  ";
+
     public static void ShowTable(GameModel game, PlayerModel player, bool revealDealer)
     {
         Console.Clear();
@@ -19,11 +21,22 @@ public static class ConsoleRenderer
 
         Console.WriteLine();
         Console.WriteLine($"{player.Name} — {player.Points} pts");
-        Console.WriteLine($"  Hand:  {Cards(player.Hand)}  (value {player.HandValue})"
-                          + Flag(player.BustedHand));
         if (player.HasSplit)
-            Console.WriteLine($"  Split: {Cards(player.SplitHand)}  (value {player.SplitHandValue})"
-                              + Flag(player.BustedSplit));
+        {
+            bool mainActive = !player.HandResolved;
+            bool splitActive = player.HandResolved && !player.SplitResolved;
+
+            Console.WriteLine($"{Marker(mainActive)}Hand:  {Cards(player.Hand)}  "
+                              + $"(value {player.HandValue}){Flag(player.BustedHand)}");
+            Console.WriteLine($"{Marker(splitActive)}Split: {Cards(player.SplitHand)}  "
+                              + $"(value {player.SplitHandValue}){Flag(player.BustedSplit)}");
+        }
+        else
+        {
+            Console.WriteLine($"  Hand:  {Cards(player.Hand)}  "
+                              + $"(value {player.HandValue}){Flag(player.BustedHand)}");
+        }
+
         Console.WriteLine($"  Bet:   {LiveBet(player)}");
         Console.WriteLine();
     }
