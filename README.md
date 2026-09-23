@@ -1,5 +1,5 @@
 # Blackjack
-This project is the game Blackjack in CLI. 
+This project is the game Blackjack, running in a CLI.  
 
 ## Usage
 
@@ -47,8 +47,8 @@ docker compose run --rm blackjack
 
 ### Class Diagram
 
-![V2]()
+![V2](ClassDiagram_V2.png)
 
 ### Entity Relation Diagram
 
-![V2]()
+![V2](ERD_V2.png)
