@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="ClassDiagram_V2.png" />
+    <File Path="ERD_V2.png" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Blackjack.CLI/Blackjack.CLI.csproj" />
