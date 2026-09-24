@@ -17,7 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Blackjack.Core\Blackjack.Core.csproj" />
-    <ProjectReference Include="..\Helpers\Helpers.csproj" />
   </ItemGroup>
 
   <ItemGroup>
